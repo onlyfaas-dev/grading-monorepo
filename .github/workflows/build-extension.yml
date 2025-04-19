@@ -1,0 +1,46 @@
+name: Build and Publish Extension
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'extension/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'extension/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install dependencies
+        run: cd extension && npm ci
+
+      - name: Build extension
+        run: cd extension && npm run package
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce
+
+      - name: Package VSIX
+        run: cd extension && vsce package
+
+      - name: Upload VSIX as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: lab-grader-extension
+          path: extension/*.vsix
+          if-no-files-found: error 

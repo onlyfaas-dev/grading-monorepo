@@ -1,0 +1,179 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lab-content
+  namespace: grading-system
+data:
+  # This is just an example structure - in production you'd likely use a volume or better
+  # way to manage lab content rather than a ConfigMap for everything
+  "lab1-instructions.md": |
+    # Lab 1: Network Traffic Analysis
+
+    ## Scenario
+    You are a network administrator who needs to analyze server logs to identify potential security threats.
+
+    ## Tasks
+
+    1. Analyze the provided log file `/lab1/resources/network.log` to identify the top 10 talkers (IPs with highest bandwidth usage)
+       - Write the results to `/lab1/toptalker.txt`
+       - Each line should contain: IP, bytes transferred, protocol (e.g., `192.168.1.45  1542000 TCP`)
+
+    2. Identify suspicious IPs based on the following criteria:
+       - Multiple failed login attempts (>5 within 1 minute)
+       - Port scanning activity (connections to >10 different ports)
+       - Write these IPs to `/lab1/blocked_ips.txt`, one per line
+
+    3. Create a JSON report summarizing your findings:
+       - Save as `/lab1/report.json`
+       - Include:
+         - Timestamp of analysis
+         - Total number of connections
+         - Array of suspicious activities with IP and reason
+
+  "lab1-grading.yaml": |
+    name: "Network Traffic Analysis Lab"
+    total_points: 100
+    outputs:
+      - file: "/lab1/toptalker.txt"
+        description: "List of top 10 talkers by bandwidth"
+        points: 40
+        validation:
+          type: "file_match"
+          method: "regex_match"
+          pattern: "^\\s*\\d+\\.\\d+\\.\\d+\\.\\d+\\s+\\d+\\s+[A-Z]{3}\\s*$"
+          lines: 10
+        
+      - file: "/lab1/blocked_ips.txt"
+        description: "List of IPs to be blocked"
+        points: 30
+        validation:
+          type: "file_match"
+          method: "content_subset"
+          must_contain:
+            - "192.168.1.45"
+            - "10.0.0.123"
+          
+      - file: "/lab1/report.json"
+        description: "JSON report with traffic statistics"
+        points: 30
+        validation:
+          type: "json_schema"
+          schema:
+            type: "object"
+            required: ["timestamp", "total_connections", "suspicious_activity"]
+            properties:
+              timestamp: { type: "string", format: "date-time" }
+              total_connections: { type: "integer", minimum: 1 }
+              suspicious_activity: { 
+                type: "array",
+                items: {
+                  type: "object",
+                  required: ["ip", "reason"]
+                }
+              }
+              
+  "lab1-grade.py": |
+    #!/usr/bin/env python3
+    
+    import os
+    import re
+    import json
+    import yaml
+    import jsonschema
+    from pathlib import Path
+    
+    def grade_lab(workspace_dir, lab_id):
+        # Load grading criteria from ConfigMap
+        with open("/labs/lab1-grading.yaml", "r") as f:
+            criteria = yaml.safe_load(f)
+        
+        results = {
+            "lab": criteria["name"],
+            "items": [],
+            "score": 0,
+            "total": criteria["total_points"]
+        }
+        
+        # Check each required output
+        for output in criteria["outputs"]:
+            file_path = Path(workspace_dir) / output["file"].lstrip("/")
+            item = {
+                "name": output["description"],
+                "points": 0,
+                "possible": output["points"],
+                "message": ""
+            }
+            
+            if not file_path.exists():
+                item["message"] = "File not found"
+                results["items"].append(item)
+                continue
+                
+            # Validate based on validation type
+            validation = output["validation"]
+            validator_type = validation["type"]
+            
+            if validator_type == "file_match":
+                method = validation["method"]
+                
+                if method == "regex_match":
+                    with open(file_path, "r") as f:
+                        content = f.read()
+                    
+                    pattern = re.compile(validation["pattern"], re.MULTILINE)
+                    matches = pattern.findall(content)
+                    
+                    if len(matches) == validation.get("lines", 0):
+                        item["points"] = output["points"]
+                        item["message"] = "Correct format and content"
+                    else:
+                        item["message"] = f"Content does not match expected format. Found {len(matches)} matching lines."
+                
+                elif method == "content_subset":
+                    with open(file_path, "r") as f:
+                        content = f.read()
+                    
+                    missing = []
+                    for required in validation["must_contain"]:
+                        if required not in content:
+                            missing.append(required)
+                    
+                    if not missing:
+                        item["points"] = output["points"]
+                        item["message"] = "File contains all required elements"
+                    else:
+                        item["message"] = f"Missing required elements: {', '.join(missing)}"
+            
+            elif validator_type == "json_schema":
+                try:
+                    with open(file_path, "r") as f:
+                        data = json.load(f)
+                    
+                    jsonschema.validate(instance=data, schema=validation["schema"])
+                    item["points"] = output["points"]
+                    item["message"] = "JSON structure is valid"
+                except json.JSONDecodeError:
+                    item["message"] = "File is not valid JSON"
+                except jsonschema.exceptions.ValidationError as e:
+                    item["message"] = f"JSON schema validation failed: {e.message}"
+            
+            results["items"].append(item)
+            results["score"] += item["points"]
+        
+        # Write results to file
+        results_file = Path(workspace_dir) / "grading_results.json"
+        with open(results_file, "w") as f:
+            json.dump(results, f, indent=2)
+        
+        print(f"Grading complete. Score: {results['score']}/{results['total']}")
+        return results
+        
+    if __name__ == "__main__":
+        import sys
+        if len(sys.argv) < 3:
+            print("Usage: grade.py <workspace_dir> <lab_id>")
+            sys.exit(1)
+        
+        grade_lab(sys.argv[1], sys.argv[2])
+        
+  # You would include more lab content, sample data, etc. in a real implementation 

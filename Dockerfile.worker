@@ -1,0 +1,25 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.worker.txt .
+RUN pip install --no-cache-dir -r requirements.worker.txt
+
+# Create non-root user
+RUN groupadd -g 10001 grader || true && \
+    useradd -u 10001 -g grader -s /bin/bash -m grader || true && \
+    chown -R grader:grader /app
+
+USER grader
+
+# Copy grading script
+COPY worker/ ./worker/
+
+# Set entrypoint
+ENTRYPOINT ["python", "worker/grade.py"]

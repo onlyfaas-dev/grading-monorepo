@@ -1,0 +1,31 @@
+# Dependency directories
+node_modules/
+.npm
+
+# Environment variables
+.env
+
+# Build outputs
+dist/
+build/
+*.vsix
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Debug files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Kubernetes temporary files
+kubeconfig.yaml
+*.kubeconfig

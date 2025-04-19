@@ -1,0 +1,100 @@
+{
+  "name": "lab-grader",
+  "displayName": "Lab Grader",
+  "description": "VS Code extension for lab submission and grading in Coder workspaces",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.63.0"
+  },
+  "categories": [
+    "Education",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:labGrader.showInstructions",
+    "onCommand:labGrader.submitLab",
+    "onView:labInstructions"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "labGrader.showInstructions",
+        "title": "Show Lab Instructions"
+      },
+      {
+        "command": "labGrader.submitLab",
+        "title": "Submit Lab for Grading"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lab-grader",
+          "title": "Lab Grader",
+          "icon": "resources/grader-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "lab-grader": [
+        {
+          "id": "labInstructions",
+          "name": "Lab Instructions"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Lab Grader",
+      "properties": {
+        "grader.labsPath": {
+          "type": "string",
+          "default": "/labs",
+          "description": "Path to labs directory"
+        },
+        "grader.apiUrl": {
+          "type": "string",
+          "default": "http://grading-service.grading-system.svc.cluster.local:8080",
+          "description": "URL to the grading service"
+        },
+        "grader.currentLab": {
+          "type": "string",
+          "default": "lab1-network-analysis",
+          "description": "ID of the current lab"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "test-compile": "tsc -p ./",
+    "test-watch": "tsc -watch -p ./",
+    "pretest": "npm run test-compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.2.0",
+    "@types/marked": "^5.0.2",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.63.0",
+    "@typescript-eslint/eslint-plugin": "^5.30.0",
+    "@typescript-eslint/parser": "^5.30.0",
+    "@vscode/test-electron": "^2.1.5",
+    "eslint": "^8.18.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.0.0",
+    "ts-loader": "^9.3.1",
+    "typescript": "^4.7.4",
+    "webpack": "^5.73.0",
+    "webpack-cli": "^4.10.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "marked": "^4.2.5"
+  }
+}

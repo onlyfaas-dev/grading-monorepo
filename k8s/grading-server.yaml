@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: grading-service
+  namespace: grading-system
+  labels:
+    app: grading-server
+spec:
+  selector:
+    app: grading-server
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP  # Only accessible within the cluster
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grading-server
+  namespace: grading-system
+  labels:
+    app: grading-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grading-server
+  template:
+    metadata:
+      labels:
+        app: grading-server
+    spec:
+      serviceAccountName: grading-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: grader
+        image: 344200675140.dkr.ecr.us-east-1.amazonaws.com/my-cluster-repo:grading-server
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: GITHUB_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: grading-secrets
+              key: github-client-id
+        - name: GITHUB_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: grading-secrets
+              key: github-client-secret
+        - name: TOKEN_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: grading-secrets
+              key: token-secret-key
+        - name: CODER_NAMESPACE
+          value: "coder"
+        - name: GRADER_IMAGE
+          value: "344200675140.dkr.ecr.us-east-1.amazonaws.com/my-cluster-repo:grading-worker"
+        volumeMounts:
+        - name: labs-volume
+          mountPath: /labs
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: labs-volume
+        configMap:
+          name: lab-content
