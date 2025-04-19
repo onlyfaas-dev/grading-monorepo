@@ -39,7 +39,7 @@ jobs:
         run: cd extension && vsce package
 
       - name: Upload VSIX as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: lab-grader-extension
           path: extension/*.vsix
